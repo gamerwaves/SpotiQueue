@@ -3,7 +3,7 @@
 A self-hosted web application that lets guests queue Spotify tracks to your Spotify account during events, with anti-spam controls, live "Now Playing" display, and a comprehensive admin interface.
 
 ## Disclaimer~
-Artificial Intelligence (AI) assistes in commenting and cleaning the code and in the creation of all documentation. While I am against AIs replacing humans I think that this is a valid use of AI as a tool
+Artificial Intelligence (AI) assiste in commenting and cleaning the code and in the creation of all documentation. While I am against AIs replacing humans I think that this is a valid use of AI as a tool
 ## Features
 
 - **Public Guest Interface**: Clean, mobile-friendly UI for queueing songs
