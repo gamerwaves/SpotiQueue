@@ -137,7 +137,7 @@ curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
 # Clone and setup
-git clone <repository-url>
+git clone https://github.com/StroepWafel/SpotiQueue
 cd SpotifyQueueApp
 npm run install:all
 npm run build
@@ -170,7 +170,7 @@ npm run install:all
 
 2. Set up environment variables:
 ```bash
-cp .env.example .env
+cp env.example .env
 # Edit .env and add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET
 # Then use the "Connect Spotify Account" button in the app to auto-fetch the refresh token
 ```
@@ -367,11 +367,11 @@ pm2 --version
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/StroepWafel/SpotiQueue
 cd SpotifyQueueApp
 
 # Copy environment file
-cp .env.example .env
+cp env.example .env
 
 # Edit .env file
 nano .env
