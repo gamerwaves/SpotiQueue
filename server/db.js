@@ -63,6 +63,7 @@ function initDatabase() {
   // Initialize default config
   const defaultConfig = [
     { key: 'cooldown_duration', value: '300' }, // 5 minutes in seconds
+    { key: 'songs_before_cooldown', value: '1' }, // Number of songs allowed before cooldown starts
     { key: 'fingerprinting_enabled', value: 'true' },
     { key: 'url_input_enabled', value: 'true' },
     { key: 'search_ui_enabled', value: 'true' },

@@ -110,6 +110,28 @@ function Configuration() {
 
         <div className="config-item">
           <label>
+            Songs Before Cooldown:
+            <input
+              type="number"
+              value={config.songs_before_cooldown || '1'}
+              onChange={(e) => handleChange('songs_before_cooldown', e.target.value)}
+              min="1"
+              className="config-input"
+            />
+          </label>
+          <button
+            onClick={() => updateConfig('songs_before_cooldown', config.songs_before_cooldown || '1')}
+            className="save-button"
+          >
+            Save
+          </button>
+        </div>
+        <p style={{ marginTop: '10px', fontSize: '0.9rem', color: '#666', fontStyle: 'italic' }}>
+          Number of songs a user can queue before the cooldown period starts. For example, if set to 3, users can queue 3 songs before needing to wait for the cooldown duration.
+        </p>
+
+        <div className="config-item">
+          <label>
             <input
               type="checkbox"
               checked={config.fingerprinting_enabled === 'true'}

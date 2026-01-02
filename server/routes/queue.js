@@ -85,6 +85,45 @@ router.post('/add', async (req, res) => {
     });
   }
   
+  // Check if user has reached the limit of songs before cooldown
+  if (cooldownEnabled) {
+    const songsBeforeCooldown = parseInt(getConfig('songs_before_cooldown') || '1');
+    const cooldownDuration = parseInt(getConfig('cooldown_duration') || '300');
+    const cooldownWindowStart = now - cooldownDuration;
+    
+    // Count successful queue attempts within the cooldown window
+    const recentQueues = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM queue_attempts
+      WHERE fingerprint_id = ? 
+        AND status = 'success' 
+        AND timestamp > ?
+    `).get(fingerprintId, cooldownWindowStart);
+    
+    const recentQueueCount = recentQueues ? recentQueues.count : 0;
+    
+    // If user has already queued enough songs, reject this request
+    // Note: This check happens BEFORE queueing, so if count >= limit, they've already reached it
+    if (recentQueueCount >= songsBeforeCooldown) {
+      const cooldownExpires = now + cooldownDuration;
+      db.prepare(`
+        UPDATE fingerprints
+        SET cooldown_expires = ?
+        WHERE id = ?
+      `).run(cooldownExpires, fingerprintId);
+      
+      db.prepare(`
+        INSERT INTO queue_attempts (fingerprint_id, status, error_message, timestamp)
+        VALUES (?, ?, ?, ?)
+      `).run(fingerprintId, 'rate_limited', 'Cooldown limit reached', now);
+      
+      return res.status(429).json({ 
+        error: `You've reached the limit of ${songsBeforeCooldown} song${songsBeforeCooldown > 1 ? 's' : ''} before cooldown. Please wait!`,
+        cooldown_remaining: cooldownDuration
+      });
+    }
+  }
+  
   // Get track info
   let trackId = req.body.track_id;
   let trackInfo = null;
@@ -132,21 +171,47 @@ router.post('/add', async (req, res) => {
     // Add to Spotify queue
     await addToQueue(trackInfo.uri);
     
-    // Update fingerprint cooldown
-    const cooldownDuration = parseInt(getConfig('cooldown_duration') || '300');
-    const cooldownExpires = now + cooldownDuration;
-    
-    db.prepare(`
-      UPDATE fingerprints
-      SET last_queue_attempt = ?, cooldown_expires = ?
-      WHERE id = ?
-    `).run(now, cooldownExpires, fingerprintId);
-    
-    // Log successful queue
+    // Log successful queue first (so it's included in the count)
     db.prepare(`
       INSERT INTO queue_attempts (fingerprint_id, track_id, track_name, artist_name, status, timestamp)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(fingerprintId, trackId, trackInfo.name, trackInfo.artists, 'success', now);
+    
+    // Update fingerprint last queue attempt
+    db.prepare(`
+      UPDATE fingerprints
+      SET last_queue_attempt = ?
+      WHERE id = ?
+    `).run(now, fingerprintId);
+    
+    // Check if we need to apply cooldown after this successful queue
+    const cooldownEnabled = getConfig('fingerprinting_enabled') === 'true';
+    if (cooldownEnabled) {
+      const songsBeforeCooldown = parseInt(getConfig('songs_before_cooldown') || '1');
+      const cooldownDuration = parseInt(getConfig('cooldown_duration') || '300');
+      const cooldownWindowStart = now - cooldownDuration;
+      
+      // Count successful queue attempts including the one we just logged
+      const recentQueues = db.prepare(`
+        SELECT COUNT(*) as count
+        FROM queue_attempts
+        WHERE fingerprint_id = ? 
+          AND status = 'success' 
+          AND timestamp > ?
+      `).get(fingerprintId, cooldownWindowStart);
+      
+      const recentQueueCount = recentQueues ? recentQueues.count : 0;
+      
+      // If this queue reaches or exceeds the limit, apply cooldown
+      if (recentQueueCount >= songsBeforeCooldown) {
+        const cooldownExpires = now + cooldownDuration;
+        db.prepare(`
+          UPDATE fingerprints
+          SET cooldown_expires = ?
+          WHERE id = ?
+        `).run(cooldownExpires, fingerprintId);
+      }
+    }
     
     res.json({
       success: true,
