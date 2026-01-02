@@ -740,3 +740,33 @@ MIT
 
 For issues or questions, please open an issue on GitHub.
 
+
+## Gallery:
+
+queue page with no song:
+
+<img width="773" height="714" alt="no song" src="https://github.com/user-attachments/assets/58cc4236-92bd-41b7-9610-7a79b5942f4a" />
+
+queue page with song and search:
+
+<img width="764" height="1268" alt="song+search" src="https://github.com/user-attachments/assets/bb494c9c-657d-4e6f-bfe8-e96beafa8ef8" />
+
+admin panel on spotify page:
+
+<img width="1110" height="638" alt="admin-main" src="https://github.com/user-attachments/assets/3e3e1df0-2d99-4537-8045-8d7c420584d7" />
+
+admin panel on devices page:
+
+<img width="1097" height="399" alt="admin-devices" src="https://github.com/user-attachments/assets/1b21f8b0-6702-4cfe-8259-c0697a4c5041" />
+
+admin panel on banned tracks page:
+
+<img width="1105" height="674" alt="admin-tracks" src="https://github.com/user-attachments/assets/513295cf-4b67-4aaa-815a-cb60cddc1b3c" />
+
+admin panel on config page:
+
+<img width="1108" height="1278" alt="admin-conf" src="https://github.com/user-attachments/assets/e90a255f-0cc4-471c-8ef0-29d64e96bd62" />
+
+admin panel on statistics page:
+
+<img width="1107" height="624" alt="admin-stats" src="https://github.com/user-attachments/assets/39dc0432-3712-402a-854f-2ebc3df11fea" />
