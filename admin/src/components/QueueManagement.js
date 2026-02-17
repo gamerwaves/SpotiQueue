@@ -9,7 +9,7 @@ function QueueManagement() {
 
   useEffect(() => {
     fetchQueue();
-    const interval = setInterval(fetchQueue, 5000);
+    const interval = setInterval(fetchQueue, 60000); // Update every 60 seconds instead of 5
     return () => clearInterval(interval);
   }, []);
 

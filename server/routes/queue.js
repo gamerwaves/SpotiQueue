@@ -7,6 +7,11 @@ const basicAuth = require('express-basic-auth');
 const router = express.Router();
 const db = getDb();
 
+// Server-side cache for queue data
+let queueCache = null;
+let queueCacheExpiry = 0;
+const QUEUE_CACHE_TTL = 60000; // 60 seconds
+
 // User auth middleware (optional, only if user_password is set)
 const userAuthMiddleware = (req, res, next) => {
   const userPassword = getConfig('user_password');
@@ -27,10 +32,29 @@ const userAuthMiddleware = (req, res, next) => {
 // Get current queue
 router.get('/current', userAuthMiddleware, async (req, res) => {
   try {
+    const now = Date.now();
+    
+    // Return cached queue if still valid
+    if (queueCache && queueCacheExpiry > now) {
+      return res.json(queueCache);
+    }
+    
+    // Fetch fresh queue data
     const queue = await getQueue();
+    
+    // Cache the result
+    queueCache = queue;
+    queueCacheExpiry = now + QUEUE_CACHE_TTL;
+    
     res.json(queue);
   } catch (error) {
     console.error('Queue error:', error);
+    
+    // If we have cached data and hit an error, return the cache
+    if (queueCache) {
+      return res.json(queueCache);
+    }
+    
     res.status(500).json({ error: error.message || 'Failed to get queue' });
   }
 });
@@ -207,6 +231,10 @@ router.post('/add', userAuthMiddleware, async (req, res) => {
     
     // Add to Spotify queue
     await addToQueue(trackInfo.uri);
+    
+    // Clear queue cache so next request gets fresh data
+    queueCache = null;
+    queueCacheExpiry = 0;
     
     // Log successful queue first (so it's included in the count)
     db.prepare(`
