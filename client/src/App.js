@@ -3,6 +3,7 @@ import axios from 'axios';
 import './App.css';
 import NowPlaying from './components/NowPlaying';
 import QueueForm from './components/QueueForm';
+import Queue from './components/Queue';
 
 axios.defaults.withCredentials = true;
 
@@ -115,9 +116,16 @@ function App() {
   return (
     <div className="app">
       <div className="container">
-        <h1 className="title">Queue a Song</h1>
-        <NowPlaying track={nowPlaying} />
-        <QueueForm fingerprintId={fingerprintId} />
+        <div className="main-content">
+          <div className="left-section">
+            <h1 className="title">Queue a Song</h1>
+            <NowPlaying track={nowPlaying} />
+            <QueueForm fingerprintId={fingerprintId} />
+          </div>
+          <div className="right-section">
+            <Queue />
+          </div>
+        </div>
       </div>
     </div>
   );

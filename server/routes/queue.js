@@ -1,13 +1,42 @@
 const express = require('express');
 const { getDb } = require('../db');
 const { getConfig } = require('../utils/config');
-const { searchTracks, getTrack, parseSpotifyUrl, addToQueue } = require('../utils/spotify');
+const { searchTracks, getTrack, parseSpotifyUrl, addToQueue, getQueue } = require('../utils/spotify');
+const basicAuth = require('express-basic-auth');
 
 const router = express.Router();
 const db = getDb();
 
+// User auth middleware (optional, only if user_password is set)
+const userAuthMiddleware = (req, res, next) => {
+  const userPassword = getConfig('user_password');
+  
+  // If no password is set, skip auth
+  if (!userPassword || userPassword.trim() === '') {
+    return next();
+  }
+  
+  const auth = basicAuth({
+    users: { user: userPassword },
+    challenge: true,
+    realm: 'Queue Access'
+  });
+  return auth(req, res, next);
+};
+
+// Get current queue
+router.get('/current', userAuthMiddleware, async (req, res) => {
+  try {
+    const queue = await getQueue();
+    res.json(queue);
+  } catch (error) {
+    console.error('Queue error:', error);
+    res.status(500).json({ error: error.message || 'Failed to get queue' });
+  }
+});
+
 // Search tracks
-router.post('/search', async (req, res) => {
+router.post('/search', userAuthMiddleware, async (req, res) => {
   try {
     // Check if queueing is enabled (search is only useful when queueing is enabled)
     const queueingEnabled = getConfig('queueing_enabled');
@@ -38,7 +67,7 @@ router.post('/search', async (req, res) => {
 });
 
 // Queue a track
-router.post('/add', async (req, res) => {
+router.post('/add', userAuthMiddleware, async (req, res) => {
   // Check if queueing is enabled
   const queueingEnabled = getConfig('queueing_enabled');
   if (queueingEnabled === 'false') {

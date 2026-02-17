@@ -6,6 +6,8 @@ import BannedTracks from './components/BannedTracks';
 import Configuration from './components/Configuration';
 import Stats from './components/Stats';
 import SpotifyConnect from './components/SpotifyConnect';
+import QueueManagement from './components/QueueManagement';
+import PrequeueManagement from './components/PrequeueManagement';
 
 axios.defaults.withCredentials = true;
 
@@ -50,6 +52,18 @@ function App() {
             Spotify
           </button>
           <button
+            className={activeTab === 'prequeue' ? 'active' : ''}
+            onClick={() => setActiveTab('prequeue')}
+          >
+            Prequeue
+          </button>
+          <button
+            className={activeTab === 'queue' ? 'active' : ''}
+            onClick={() => setActiveTab('queue')}
+          >
+            Queue
+          </button>
+          <button
             className={activeTab === 'devices' ? 'active' : ''}
             onClick={() => setActiveTab('devices')}
           >
@@ -77,6 +91,8 @@ function App() {
 
         <main className="admin-content">
           {activeTab === 'spotify' && <SpotifyConnect />}
+          {activeTab === 'prequeue' && <PrequeueManagement />}
+          {activeTab === 'queue' && <QueueManagement />}
           {activeTab === 'devices' && <DeviceManagement />}
           {activeTab === 'banned' && <BannedTracks />}
           {activeTab === 'config' && <Configuration />}

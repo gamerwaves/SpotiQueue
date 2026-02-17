@@ -11,12 +11,20 @@ function QueueForm({ fingerprintId }) {
   const [message, setMessage] = useState(null);
   const [messageType, setMessageType] = useState(null);
   const [inputMethod, setInputMethod] = useState('search'); // 'search' or 'url'
+  const [prequeueEnabled, setPrequeueEnabled] = useState(false);
   const [config] = useState({ search_ui_enabled: 'true', url_input_enabled: 'true' });
 
   useEffect(() => {
-    // Fetch config to determine available input methods
-    // Note: This endpoint requires auth, so we'll default to both enabled
-    // In production, you might want a public config endpoint
+    // Check if prequeue is enabled
+    const checkPrequeue = async () => {
+      try {
+        const response = await axios.get('/api/config/public/prequeue_enabled');
+        setPrequeueEnabled(response.data.value === 'true');
+      } catch (error) {
+        setPrequeueEnabled(false);
+      }
+    };
+    checkPrequeue();
   }, []);
 
   const handleSearch = async (e) => {
@@ -45,10 +53,12 @@ function QueueForm({ fingerprintId }) {
     // Keep search results and query - don't clear them
 
     try {
-      const response = await axios.post('/api/queue/add', {
-        fingerprint_id: fingerprintId,
-        track_id: trackId
-      });
+      const endpoint = prequeueEnabled ? '/api/prequeue/submit' : '/api/queue/add';
+      const payload = prequeueEnabled 
+        ? { fingerprint_id: fingerprintId, track_id: trackId }
+        : { fingerprint_id: fingerprintId, track_id: trackId };
+
+      const response = await axios.post(endpoint, payload);
 
       setMessage(response.data.message || 'Track queued successfully!');
       setMessageType('success');
@@ -69,10 +79,12 @@ function QueueForm({ fingerprintId }) {
     setMessage(null);
 
     try {
-      const response = await axios.post('/api/queue/add', {
-        fingerprint_id: fingerprintId,
-        track_url: urlInput
-      });
+      const endpoint = prequeueEnabled ? '/api/prequeue/submit' : '/api/queue/add';
+      const payload = prequeueEnabled
+        ? { fingerprint_id: fingerprintId, track_url: urlInput }
+        : { fingerprint_id: fingerprintId, track_url: urlInput };
+
+      const response = await axios.post(endpoint, payload);
 
       setMessage(response.data.message || 'Track queued successfully!');
       setMessageType('success');

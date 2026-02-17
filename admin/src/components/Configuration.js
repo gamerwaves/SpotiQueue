@@ -186,6 +186,29 @@ function Configuration() {
       </div>
 
       <div className="config-section">
+        <h2>Approval System</h2>
+        <div className="config-item">
+          <label>
+            <input
+              type="checkbox"
+              checked={config.prequeue_enabled === 'true'}
+              onChange={(e) => handleChange('prequeue_enabled', e.target.checked ? 'true' : 'false')}
+            />
+            Enable Prequeue (Slack Approval)
+          </label>
+          <button
+            onClick={() => updateConfig('prequeue_enabled', config.prequeue_enabled)}
+            className="save-button"
+          >
+            Save
+          </button>
+        </div>
+        <p style={{ marginTop: '10px', fontSize: '0.9rem', color: '#666', fontStyle: 'italic' }}>
+          When enabled, song requests will be sent to Slack for approval before being added to the queue. Requires SLACK_WEBHOOK_URL to be configured in .env
+        </p>
+      </div>
+
+      <div className="config-section">
         <h2>Content Filtering</h2>
         <div className="config-item">
           <label>
@@ -251,6 +274,27 @@ function Configuration() {
             Save
           </button>
         </div>
+        <div className="config-item">
+          <label>
+            User Password (leave empty for no password):
+            <input
+              type="password"
+              value={config.user_password || ''}
+              onChange={(e) => handleChange('user_password', e.target.value)}
+              className="config-input"
+              placeholder="Leave empty to disable"
+            />
+          </label>
+          <button
+            onClick={() => updateConfig('user_password', config.user_password || '')}
+            className="save-button"
+          >
+            Save
+          </button>
+        </div>
+        <p style={{ marginTop: '10px', fontSize: '0.9rem', color: '#666', fontStyle: 'italic' }}>
+          Set a password to require users to authenticate before accessing the queue. Leave empty to allow public access.
+        </p>
         <div className="config-item">
           <label>
             Admin Panel Redirect URL:

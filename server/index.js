@@ -6,32 +6,45 @@ require('dotenv').config();
 
 const fingerprintRouter = require('./routes/fingerprint');
 const queueRouter = require('./routes/queue');
+const prequeueRouter = require('./routes/prequeue');
 const nowPlayingRouter = require('./routes/nowPlaying');
 const adminRouter = require('./routes/admin');
 const configRouter = require('./routes/config');
 const authRouter = require('./routes/auth');
 const { initDatabase } = require('./db');
+const { initSlackSocketMode } = require('./utils/slack');
 
 const app = express();
+
+// Disable strict host checking for Cloudflare Tunnel
+app.set('trust proxy', true);
+
 // In development, use port 5000 for backend API (React dev server uses 3000)
 // In production, use port 3000
 // Check if we're in production by checking if NODE_ENV is explicitly set to 'production'
 const isProduction = process.env.NODE_ENV === 'production';
 
-// In development, ALWAYS use 5000 to avoid conflict with React dev server on 3000
+// In development, use port 8000 to avoid conflicts
 // Force override any PORT from .env file in development
 let PORT;
 if (isProduction) {
   PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 } else {
-  // Development mode - FORCE port 5000, ignore any PORT from .env
-  PORT = 5000;
+  // Development mode - FORCE port 8000, ignore any PORT from .env
+  PORT = 8000;
   // Explicitly delete PORT from env to prevent any other code from using it
   delete process.env.PORT;
 }
 const ADMIN_PORT = process.env.ADMIN_PORT || 3001;
 
 console.log(`Server mode: ${isProduction ? 'production' : 'development'}, Public port: ${PORT}, Admin port: ${ADMIN_PORT}`);
+
+// Middleware to handle Cloudflare Tunnel Host header
+app.use((req, res, next) => {
+  // In production with Cloudflare, just allow all hosts
+  // Cloudflare handles the security
+  next();
+});
 
 // Middleware
 app.use(cors({
@@ -44,9 +57,13 @@ app.use(cookieParser());
 // Initialize database
 initDatabase();
 
+// Initialize Slack Socket Mode
+initSlackSocketMode();
+
 // Routes
 app.use('/api/fingerprint', fingerprintRouter);
 app.use('/api/queue', queueRouter);
+app.use('/api/prequeue', prequeueRouter);
 app.use('/api/now-playing', nowPlayingRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/config', configRouter);
@@ -116,6 +133,17 @@ app.listen(PORT, () => {
 
 // Start admin server
 const adminApp = express();
+
+// Disable strict host checking for Cloudflare Tunnel
+adminApp.set('trust proxy', true);
+
+// Middleware to handle Cloudflare Tunnel Host header
+adminApp.use((req, res, next) => {
+  // In production with Cloudflare, just allow all hosts
+  // Cloudflare handles the security
+  next();
+});
+
 adminApp.use(cors({
   origin: process.env.ADMIN_CLIENT_URL || 'http://localhost:3001',
   credentials: true
@@ -125,6 +153,7 @@ adminApp.use(cookieParser());
 
 adminApp.use('/api/fingerprint', fingerprintRouter);
 adminApp.use('/api/queue', queueRouter);
+adminApp.use('/api/prequeue', prequeueRouter);
 adminApp.use('/api/now-playing', nowPlayingRouter);
 adminApp.use('/api/admin', adminRouter);
 adminApp.use('/api/config', configRouter);

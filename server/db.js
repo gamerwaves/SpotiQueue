@@ -62,6 +62,21 @@ function initDatabase() {
     )
   `);
 
+  // Prequeue (pending approval)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS prequeue (
+      id TEXT PRIMARY KEY,
+      fingerprint_id TEXT NOT NULL,
+      track_id TEXT NOT NULL,
+      track_name TEXT NOT NULL,
+      artist_name TEXT NOT NULL,
+      album_art TEXT,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'declined')),
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (fingerprint_id) REFERENCES fingerprints(id)
+    )
+  `);
+
   // Configuration
   db.exec(`
     CREATE TABLE IF NOT EXISTS config (
@@ -79,8 +94,10 @@ function initDatabase() {
     { key: 'url_input_enabled', value: 'true' },
     { key: 'search_ui_enabled', value: 'true' },
     { key: 'queueing_enabled', value: 'true' },
+    { key: 'prequeue_enabled', value: 'false' },
     { key: 'admin_panel_url', value: '' }, // Empty by default, will use placeholder if not configured
     { key: 'admin_password', value: 'admin' },
+    { key: 'user_password', value: '' }, // Empty by default, no password required for users
     { key: 'require_username', value: 'false' } // Require username on first visit
   ];
 

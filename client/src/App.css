@@ -12,19 +12,37 @@
   border-radius: 12px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
   padding: 48px;
-  max-width: 640px;
+  max-width: 1400px;
   width: 100%;
   border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.main-content {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 40px;
+}
+
+.left-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.right-section {
+  display: flex;
+  flex-direction: column;
 }
 
 .title {
   text-align: center;
   font-size: 2.25rem;
-  margin-bottom: 40px;
+  margin-bottom: 0;
   color: #1a1a1a;
   font-weight: 600;
   letter-spacing: -0.8px;
   line-height: 1.2;
+  grid-column: 1 / -1;
 }
 
 .loading {
@@ -91,6 +109,17 @@
 
 .username-submit:active {
   background: #1aa34a;
+}
+
+@media (max-width: 1024px) {
+  .main-content {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .right-section {
+    max-height: 400px;
+  }
 }
 
 @media (max-width: 768px) {
