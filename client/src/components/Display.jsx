@@ -55,6 +55,8 @@ export default function Display() {
   const [progress, setProgress] = useState(0)
   const [initialized, setInitialized] = useState(false)
   const [votingEnabled, setVotingEnabled] = useState(false)
+  const [currentLyricIndex, setCurrentLyricIndex] = useState(0)
+  const [cachedLyrics, setCachedLyrics] = useState(null)
 
   const nowPlayingRef = useRef(null)
   const lastFetchedAtRef = useRef(null)
@@ -75,6 +77,20 @@ export default function Display() {
         const res = await axios.get('/api/now-playing', { timeout: 5000 })
         if (cancelled) return
         const track = res.data?.track ?? null
+        
+        // If track changed, reset lyrics cache
+        if (track?.id !== nowPlayingRef.current?.id) {
+          setCachedLyrics(null)
+        }
+        
+        // Use cached lyrics if available, otherwise use from response
+        if (track && track.lyrics) {
+          setCachedLyrics(track.lyrics)
+          track.lyrics = track.lyrics
+        } else if (track && cachedLyrics) {
+          track.lyrics = cachedLyrics
+        }
+        
         setNowPlaying(track)
         nowPlayingRef.current = track
         lastFetchedAtRef.current = Date.now()
@@ -94,7 +110,7 @@ export default function Display() {
     fetchNowPlaying()
     const interval = setInterval(fetchNowPlaying, POLL_NOW_PLAYING_MS)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [])
+  }, [cachedLyrics])
 
   // Animate progress bar between polls
   useEffect(() => {
@@ -113,7 +129,24 @@ export default function Display() {
     return () => clearInterval(progressTimerRef.current)
   }, [nowPlaying])
 
-  // Poll queue (up next)
+  // Sync lyrics with playback progress
+  useEffect(() => {
+    if (!nowPlaying?.lyrics?.lines || nowPlaying.lyrics.lines.length === 0) return
+
+    const currentMs = (nowPlayingRef.current?.progress_ms ?? 0) + (Date.now() - (lastFetchedAtRef.current ?? Date.now()))
+    
+    // Find the current lyric line based on time
+    let newIndex = 0
+    for (let i = nowPlaying.lyrics.lines.length - 1; i >= 0; i--) {
+      const lineStartMs = nowPlaying.lyrics.lines[i].startTimeMs ?? 0
+      if (currentMs >= lineStartMs) {
+        newIndex = i
+        break
+      }
+    }
+    setCurrentLyricIndex(newIndex)
+  }, [progress, nowPlaying?.lyrics])
+
   useEffect(() => {
     let cancelled = false
 
@@ -208,6 +241,33 @@ export default function Display() {
                     <span>{formatDuration(nowPlaying.duration_ms)}</span>
                   </div>
                 </div>
+
+                {/* Lyrics */}
+                {nowPlaying.lyrics?.lines && (
+                  <div className="mt-4 pt-4 border-t border-white/10 max-h-40 overflow-y-auto scroll-smooth">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-3">Lyrics</p>
+                    <div className="space-y-2">
+                      {nowPlaying.lyrics.lines.map((line, idx) => (
+                        <div
+                          key={idx}
+                          ref={idx === currentLyricIndex ? el => el?.scrollIntoView({ behavior: 'smooth', block: 'center' }) : null}
+                        >
+                          <p
+                            className={`text-sm transition-all duration-300 ${
+                              idx === currentLyricIndex
+                                ? 'text-white font-semibold scale-105'
+                                : idx < currentLyricIndex
+                                ? 'text-white/40'
+                                : 'text-white/60'
+                            }`}
+                          >
+                            {line.words}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
