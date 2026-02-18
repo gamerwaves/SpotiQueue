@@ -169,7 +169,7 @@ async function sendPrequeueMessage(trackInfo, prequeueId) {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*New Song Request*\n*${trackInfo.name}*\nby ${trackInfo.artists}`
+            text: `*<!subteam^S0AFQAYTM2Q|cf-toronto-song-reviwers> New Song Request*\n*${trackInfo.name}*\nby ${trackInfo.artists}`
           },
           accessory: {
             type: 'image',
