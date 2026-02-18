@@ -51,12 +51,16 @@ function QueueForm({ fingerprintId }) {
   }
 
   const fireConfetti = () => {
-    confetti({
-      particleCount: 120,
-      spread: 80,
-      origin: { y: 0.4 },
-      colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6']
-    })
+    try {
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.4 },
+        colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6']
+      })
+    } catch {
+      // non-critical
+    }
   }
 
   const fetchQueuePosition = async (trackId) => {
@@ -94,6 +98,7 @@ function QueueForm({ fingerprintId }) {
 
   const handleQueueTrack = async (trackId) => {
     setIsQueueing(true)
+    setMyQueuedTrack(null)
     try {
       const endpoint = prequeueEnabled ? '/api/prequeue/submit' : '/api/queue/add'
       const response = await axios.post(endpoint, { fingerprint_id: fingerprintId, track_id: trackId })
