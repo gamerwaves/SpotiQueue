@@ -34,6 +34,7 @@ function ClientPage() {
   const [githubAvailable, setGithubAvailable] = useState(false)
   const [auraEnabled, setAuraEnabled] = useState(false)
   const [activityFeedEnabled, setActivityFeedEnabled] = useState(false)
+  const [myTrackId, setMyTrackId] = useState(null)
 
   const auraColor = useAuraColor(auraEnabled ? nowPlaying?.album_art : null)
 
@@ -186,10 +187,13 @@ function ClientPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
           <div className="space-y-6">
             <NowPlaying track={nowPlaying} auraColor={auraColor} />
-            <QueueForm fingerprintId={fingerprintId} />
+            <QueueForm
+              fingerprintId={fingerprintId}
+              onQueued={(trackId) => setMyTrackId(trackId)}
+            />
           </div>
           <div className="lg:sticky lg:top-20 lg:self-start">
-            <Queue fingerprintId={fingerprintId} />
+            <Queue fingerprintId={fingerprintId} myTrackId={myTrackId} />
           </div>
         </div>
         {activityFeedEnabled && (

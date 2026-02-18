@@ -9,7 +9,7 @@ import { Badge } from './ui/badge'
 import { useToast } from './ui/toast'
 import { Search, Link as LinkIcon, Loader2, Music, Clock } from 'lucide-react'
 
-function QueueForm({ fingerprintId }) {
+function QueueForm({ fingerprintId, onQueued }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [urlInput, setUrlInput] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -105,6 +105,8 @@ function QueueForm({ fingerprintId }) {
       toast({ title: 'Success', description: response.data.message || 'Track queued!', variant: 'success' })
 
       if (confettiEnabled) fireConfetti()
+
+      if (onQueued) onQueued(trackId)
 
       const track = searchResults.find(t => t.id === trackId)
       if (track) {
