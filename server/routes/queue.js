@@ -405,5 +405,37 @@ router.get('/votes', userAuthMiddleware, (req, res) => {
   }
 });
 
-module.exports = router;
 
+// GET /api/queue/recent-activity
+// Returns last 15 successful queue events for the activity feed
+router.get('/recent-activity', (req, res) => {
+  try {
+    const db = getDb()
+    const rows = db.prepare(`
+      SELECT
+        qa.track_name,
+        qa.artist_name,
+        f.username,
+        qa.timestamp
+      FROM queue_attempts qa
+      LEFT JOIN fingerprints f ON qa.fingerprint_id = f.id
+      WHERE qa.status = 'success' AND qa.track_name IS NOT NULL
+      ORDER BY qa.timestamp DESC
+      LIMIT 15
+    `).all()
+
+    const activity = rows.map(row => ({
+      track_name: row.track_name,
+      artist_name: row.artist_name,
+      username: row.username || null,
+      timestamp: row.timestamp
+    }))
+
+    res.json({ activity })
+  } catch (error) {
+    console.error('Activity feed error:', error)
+    res.json({ activity: [] })
+  }
+})
+
+module.exports = router;
