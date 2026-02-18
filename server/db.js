@@ -36,7 +36,12 @@ async function initDatabase() {
     )
   `);
   
-  db.run(`ALTER TABLE fingerprints ADD COLUMN username TEXT`);
+  // Try to add username column if it doesn't exist (ignore errors)
+  try {
+    db.run(`ALTER TABLE fingerprints ADD COLUMN username TEXT`);
+  } catch (err) {
+    // Column already exists, ignore
+  }
 
   db.run(`
     CREATE TABLE IF NOT EXISTS queue_attempts (
