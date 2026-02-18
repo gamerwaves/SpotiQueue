@@ -80,6 +80,12 @@ router.post('/search', userAuthMiddleware, async (req, res) => {
     if (banExplicit) {
       tracks = tracks.filter(track => !track.explicit);
     }
+
+    // Filter out tracks exceeding duration limit
+    const maxDuration = parseInt(getConfig('max_song_duration') || '0');
+    if (maxDuration > 0) {
+      tracks = tracks.filter(track => track.duration_ms <= maxDuration * 1000);
+    }
     
     res.json({ tracks });
   } catch (error) {
@@ -217,7 +223,7 @@ router.post('/add', userAuthMiddleware, async (req, res) => {
   try {
     // Get track info
     trackInfo = await getTrack(trackId);
-    
+
     // Check if explicit songs are banned
     const banExplicit = getConfig('ban_explicit') === 'true';
     if (banExplicit && trackInfo.explicit) {
@@ -225,10 +231,41 @@ router.post('/add', userAuthMiddleware, async (req, res) => {
         INSERT INTO queue_attempts (fingerprint_id, track_id, track_name, artist_name, status, error_message, timestamp)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(fingerprintId, trackId, trackInfo.name, trackInfo.artists, 'blocked', 'Explicit content not allowed', now);
-      
+
       return res.status(403).json({ error: 'Explicit songs are not allowed.' });
     }
-    
+
+    // Check song duration limit
+    const maxDuration = parseInt(getConfig('max_song_duration') || '0');
+    if (maxDuration > 0 && trackInfo.duration_ms > maxDuration * 1000) {
+      const maxMins = Math.floor(maxDuration / 60);
+      const maxSecs = maxDuration % 60;
+      db.prepare(`
+        INSERT INTO queue_attempts (fingerprint_id, track_id, track_name, artist_name, status, error_message, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(fingerprintId, trackId, trackInfo.name, trackInfo.artists, 'blocked', 'Song exceeds duration limit', now);
+
+      return res.status(403).json({ error: `Song is too long. Maximum duration is ${maxMins}:${String(maxSecs).padStart(2, '0')}.` });
+    }
+
+    // Check for duplicate in current queue
+    try {
+      const currentQueue = await getQueue();
+      const isDuplicate = currentQueue.queue.some(track => track.id === trackId) ||
+        (currentQueue.currently_playing && currentQueue.currently_playing.id === trackId);
+      if (isDuplicate) {
+        db.prepare(`
+          INSERT INTO queue_attempts (fingerprint_id, track_id, track_name, artist_name, status, error_message, timestamp)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(fingerprintId, trackId, trackInfo.name, trackInfo.artists, 'blocked', 'Song already in queue', now);
+
+        return res.status(409).json({ error: 'This song is already in the queue.' });
+      }
+    } catch (queueErr) {
+      // If we can't check the queue, allow the song through
+      console.warn('Could not check queue for duplicates:', queueErr.message);
+    }
+
     // Add to Spotify queue
     await addToQueue(trackInfo.uri);
     

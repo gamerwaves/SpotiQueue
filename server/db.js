@@ -43,6 +43,19 @@ async function initDatabase() {
     // Column already exists, ignore
   }
 
+  // Try to add github columns if they don't exist
+  try {
+    db.run(`ALTER TABLE fingerprints ADD COLUMN github_id TEXT`);
+  } catch (err) {}
+  try {
+    db.run(`ALTER TABLE fingerprints ADD COLUMN github_username TEXT`);
+  } catch (err) {}
+
+  // Try to add approved_by column to prequeue
+  try {
+    db.run(`ALTER TABLE prequeue ADD COLUMN approved_by TEXT`);
+  } catch (err) {}
+
   db.run(`
     CREATE TABLE IF NOT EXISTS queue_attempts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,10 +89,32 @@ async function initDatabase() {
       artist_name TEXT NOT NULL,
       album_art TEXT,
       status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'declined')),
+      approved_by TEXT,
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       FOREIGN KEY (fingerprint_id) REFERENCES fingerprints(id)
     )
   `);
+
+  // Try to add approved_by column if it doesn't exist
+  try {
+    db.run(`ALTER TABLE prequeue ADD COLUMN approved_by TEXT`);
+  } catch (err) {
+    // Column already exists, ignore
+  }
+
+  // Try to add github_id column to fingerprints if it doesn't exist
+  try {
+    db.run(`ALTER TABLE fingerprints ADD COLUMN github_id TEXT`);
+  } catch (err) {
+    // Column already exists, ignore
+  }
+
+  // Try to add github_avatar column to fingerprints if it doesn't exist
+  try {
+    db.run(`ALTER TABLE fingerprints ADD COLUMN github_avatar TEXT`);
+  } catch (err) {
+    // Column already exists, ignore
+  }
 
   db.run(`
     CREATE TABLE IF NOT EXISTS config (
@@ -101,7 +136,9 @@ async function initDatabase() {
     { key: 'admin_panel_url', value: '' },
     { key: 'admin_password', value: 'admin' },
     { key: 'user_password', value: '' },
-    { key: 'require_username', value: 'false' }
+    { key: 'require_username', value: 'false' },
+    { key: 'max_song_duration', value: '0' },
+    { key: 'ban_explicit', value: 'false' }
   ];
 
   defaultConfig.forEach(config => {
