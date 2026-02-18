@@ -56,9 +56,19 @@ export default {
           '0%, 100%': { opacity: 1 },
           '50%': { opacity: 0.5 },
         },
+        marquee: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(calc(-100% - var(--gap)))' },
+        },
+        'marquee-vertical': {
+          from: { transform: 'translateY(0)' },
+          to: { transform: 'translateY(calc(-100% - var(--gap)))' },
+        },
       },
       animation: {
         'pulse-slow': 'pulse-slow 2s ease-in-out infinite',
+        marquee: 'marquee var(--duration) linear infinite',
+        'marquee-vertical': 'marquee-vertical var(--duration) linear infinite',
       },
     },
   },
