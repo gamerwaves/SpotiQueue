@@ -148,7 +148,8 @@ async function initDatabase() {
     { key: 'user_password', value: '' },
     { key: 'require_username', value: 'false' },
     { key: 'max_song_duration', value: '0' },
-    { key: 'ban_explicit', value: 'false' }
+    { key: 'ban_explicit', value: 'false' },
+    { key: 'voting_enabled', value: 'false' }
   ];
 
   defaultConfig.forEach(config => {
