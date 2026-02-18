@@ -92,7 +92,7 @@ async function handleApprove(prequeueId, userId, responseUrl) {
     
     // Send response
     await axios.post(responseUrl, {
-      text: `✅ Approved: ${prequeue.track_name} by ${prequeue.artist_name}`,
+      text: `✅ Approved: ${prequeue.track_name} by ${prequeue.artist_name} by <@${userId}>`,
       replace_original: true
     });
     
@@ -135,7 +135,7 @@ async function handleDecline(prequeueId, userId, responseUrl) {
     
     // Send response
     await axios.post(responseUrl, {
-      text: `❌ Declined: ${prequeue.track_name} by ${prequeue.artist_name}`,
+      text: `❌ Declined: ${prequeue.track_name} by ${prequeue.artist_name} by <@${userId}>`,
       replace_original: true
     });
     
