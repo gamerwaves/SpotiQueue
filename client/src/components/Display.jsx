@@ -3,6 +3,7 @@ import axios from 'axios'
 import { QRCodeSVG } from 'qrcode.react'
 import { Music, ChevronUp, WifiOff } from 'lucide-react'
 import { useAuraColor } from '../hooks/useAuraColor'
+import ActivityFeed from './ActivityFeed'
 
 const POLL_NOW_PLAYING_MS = 5000
 const POLL_QUEUE_MS = 8000
@@ -62,6 +63,7 @@ export default function Display() {
   const [initialized, setInitialized] = useState(false)
   const [votingEnabled, setVotingEnabled] = useState(false)
   const [auraEnabled, setAuraEnabled] = useState(false)
+  const [activityFeedEnabled, setActivityFeedEnabled] = useState(false)
 
   const nowPlayingRef = useRef(null)
   const lastFetchedAtRef = useRef(null)
@@ -153,6 +155,12 @@ export default function Display() {
   useEffect(() => {
     axios.get('/api/config/public/aura_enabled', { timeout: 5000 })
       .then(res => setAuraEnabled(res.data?.value !== 'false'))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    axios.get('/api/config/public/activity_feed_enabled', { timeout: 5000 })
+      .then(res => setActivityFeedEnabled(res.data?.value !== 'false'))
       .catch(() => {})
   }, [])
 
@@ -287,6 +295,11 @@ export default function Display() {
                 <p className="text-sm font-semibold">Queue a song</p>
                 <p className="text-xs text-white/40 mt-0.5 break-all">{appUrl}</p>
               </div>
+            </div>
+          )}
+          {activityFeedEnabled && (
+            <div className="border-t border-white/10 pt-3">
+              <ActivityFeed className="[&_span]:bg-white/10 [&_span]:text-white/70 [&_span]:border-0" />
             </div>
           )}
         </div>

@@ -6,6 +6,7 @@ import { Toaster } from './components/ui/toast'
 import NowPlaying from './components/NowPlaying'
 import QueueForm from './components/QueueForm'
 import Queue from './components/Queue'
+import ActivityFeed from './components/ActivityFeed'
 import Display from './components/Display'
 import DeviceManagement from './components/DeviceManagement'
 import BannedTracks from './components/BannedTracks'
@@ -32,6 +33,7 @@ function ClientPage() {
   const [usernameError, setUsernameError] = useState('')
   const [githubAvailable, setGithubAvailable] = useState(false)
   const [auraEnabled, setAuraEnabled] = useState(false)
+  const [activityFeedEnabled, setActivityFeedEnabled] = useState(false)
 
   const auraColor = useAuraColor(auraEnabled ? nowPlaying?.album_art : null)
 
@@ -74,6 +76,10 @@ function ClientPage() {
 
     axios.get('/api/config/public/aura_enabled')
       .then(res => setAuraEnabled(res.data?.value !== 'false'))
+      .catch(() => {})
+
+    axios.get('/api/config/public/activity_feed_enabled')
+      .then(res => setActivityFeedEnabled(res.data?.value !== 'false'))
       .catch(() => {})
 
     return () => clearInterval(interval)
@@ -186,6 +192,11 @@ function ClientPage() {
             <Queue fingerprintId={fingerprintId} />
           </div>
         </div>
+        {activityFeedEnabled && (
+          <div className="border-t border-border mt-6 py-2">
+            <ActivityFeed />
+          </div>
+        )}
       </main>
     </div>
   )
