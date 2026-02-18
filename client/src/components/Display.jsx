@@ -54,6 +54,7 @@ export default function Display() {
   const [connected, setConnected] = useState(true)
   const [progress, setProgress] = useState(0)
   const [initialized, setInitialized] = useState(false)
+  const [votingEnabled, setVotingEnabled] = useState(false)
 
   const nowPlayingRef = useRef(null)
   const lastFetchedAtRef = useRef(null)
@@ -132,8 +133,16 @@ export default function Display() {
     return () => { cancelled = true; clearInterval(interval) }
   }, [])
 
-  // Poll votes
+  // Fetch voting_enabled config once on mount
   useEffect(() => {
+    axios.get('/api/config/public/voting_enabled', { timeout: 5000 })
+      .then(res => setVotingEnabled(res.data?.value === 'true'))
+      .catch(() => setVotingEnabled(false))
+  }, [])
+
+  // Poll votes (only when voting is enabled)
+  useEffect(() => {
+    if (!votingEnabled) return
     let cancelled = false
 
     const fetchVotes = async () => {
@@ -150,7 +159,7 @@ export default function Display() {
     fetchVotes()
     const interval = setInterval(fetchVotes, POLL_VOTES_MS)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [])
+  }, [votingEnabled])
 
   return (
     <div className="fixed inset-0 bg-gray-950 text-white flex flex-col overflow-hidden select-none">
@@ -231,7 +240,7 @@ export default function Display() {
                         <p className="text-sm font-medium truncate">{track.name}</p>
                         <p className="text-xs text-white/50 truncate">{track.artists}</p>
                       </div>
-                      {voteCount > 0 && (
+                      {votingEnabled && voteCount > 0 && (
                         <div className="flex items-center gap-1 text-green-400 shrink-0">
                           <ChevronUp className="h-3.5 w-3.5" />
                           <span className="text-xs font-semibold">{voteCount}</span>

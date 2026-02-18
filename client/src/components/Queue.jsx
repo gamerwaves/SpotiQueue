@@ -37,9 +37,10 @@ function formatDuration(ms) {
 export default function Queue({ fingerprintId }) {
   const [queue, setQueue] = useState(() => readCache())
   const [loading, setLoading] = useState(() => !readCache())
-  const [votes, setVotes] = useState({})       // { trackId: count }
-  const [userVotes, setUserVotes] = useState([]) // trackIds the user voted for
-  const [votingId, setVotingId] = useState(null) // currently pending vote
+  const [votes, setVotes] = useState({})
+  const [userVotes, setUserVotes] = useState([])
+  const [votingId, setVotingId] = useState(null)
+  const [votingEnabled, setVotingEnabled] = useState(false)
   const timerRef = useRef(null)
   const backoffRef = useRef(0)
 
@@ -86,8 +87,16 @@ export default function Queue({ fingerprintId }) {
     }
   }, [])
 
-  // Poll votes
+  // Fetch voting_enabled config once on mount
   useEffect(() => {
+    axios.get('/api/config/public/voting_enabled', { timeout: 5000 })
+      .then(res => setVotingEnabled(res.data?.value === 'true'))
+      .catch(() => setVotingEnabled(false))
+  }, [])
+
+  // Poll votes (only when voting is enabled)
+  useEffect(() => {
+    if (!votingEnabled) return
     let cancelled = false
 
     const fetchVotes = async () => {
@@ -106,7 +115,7 @@ export default function Queue({ fingerprintId }) {
     fetchVotes()
     const interval = setInterval(fetchVotes, VOTES_POLL_MS)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [fingerprintId])
+  }, [fingerprintId, votingEnabled])
 
   const handleVote = async (trackId) => {
     if (!fingerprintId || votingId) return
