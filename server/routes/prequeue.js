@@ -99,6 +99,7 @@ router.post('/submit', userAuthMiddleware, async (req, res) => {
 
 // Approve prequeue track
 router.post('/approve/:prequeueId', async (req, res) => {
+  const db = getDb();
   const { prequeueId } = req.params;
 
   try {
@@ -138,6 +139,7 @@ router.post('/approve/:prequeueId', async (req, res) => {
 
 // Decline prequeue track
 router.post('/decline/:prequeueId', async (req, res) => {
+  const db = getDb();
   const { prequeueId } = req.params;
 
   try {
@@ -166,6 +168,7 @@ router.post('/decline/:prequeueId', async (req, res) => {
 
 // Get prequeue status
 router.get('/status/:prequeueId', (req, res) => {
+  const db = getDb();
   const { prequeueId } = req.params;
 
   try {
@@ -184,6 +187,7 @@ router.get('/status/:prequeueId', (req, res) => {
 
 // Get pending prequeue requests
 router.get('/pending', (req, res) => {
+  const db = getDb();
   try {
     const pending = db.prepare(`
       SELECT * FROM prequeue 
