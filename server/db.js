@@ -1,4 +1,4 @@
-const initSqlJs = require('sql.js');
+const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
 
@@ -12,19 +12,14 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-async function initDatabase() {
-  const SQL = await initSqlJs();
+function initDatabase() {
+  db = new Database(dbPath);
   
-  // Load existing database or create new one
-  let data;
-  if (fs.existsSync(dbPath)) {
-    data = fs.readFileSync(dbPath);
-  }
-  
-  db = new SQL.Database(data);
+  // Enable foreign keys
+  db.pragma('foreign_keys = ON');
   
   // Create tables
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS fingerprints (
       id TEXT PRIMARY KEY,
       first_seen INTEGER NOT NULL,
@@ -32,31 +27,14 @@ async function initDatabase() {
       cooldown_expires INTEGER,
       status TEXT DEFAULT 'active' CHECK(status IN ('active', 'blocked')),
       username TEXT,
+      github_id TEXT,
+      github_username TEXT,
+      github_avatar TEXT,
       created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )
   `);
-  
-  // Try to add username column if it doesn't exist (ignore errors)
-  try {
-    db.run(`ALTER TABLE fingerprints ADD COLUMN username TEXT`);
-  } catch (err) {
-    // Column already exists, ignore
-  }
 
-  // Try to add github columns if they don't exist
-  try {
-    db.run(`ALTER TABLE fingerprints ADD COLUMN github_id TEXT`);
-  } catch (err) {}
-  try {
-    db.run(`ALTER TABLE fingerprints ADD COLUMN github_username TEXT`);
-  } catch (err) {}
-
-  // Try to add approved_by column to prequeue
-  try {
-    db.run(`ALTER TABLE prequeue ADD COLUMN approved_by TEXT`);
-  } catch (err) {}
-
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS queue_attempts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       fingerprint_id TEXT NOT NULL,
@@ -70,7 +48,7 @@ async function initDatabase() {
     )
   `);
 
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS banned_tracks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       track_id TEXT UNIQUE NOT NULL,
@@ -80,7 +58,7 @@ async function initDatabase() {
     )
   `);
 
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS prequeue (
       id TEXT PRIMARY KEY,
       fingerprint_id TEXT NOT NULL,
@@ -95,7 +73,7 @@ async function initDatabase() {
     )
   `);
 
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS votes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       track_id TEXT NOT NULL,
@@ -105,28 +83,7 @@ async function initDatabase() {
     )
   `);
 
-  // Try to add approved_by column if it doesn't exist
-  try {
-    db.run(`ALTER TABLE prequeue ADD COLUMN approved_by TEXT`);
-  } catch (err) {
-    // Column already exists, ignore
-  }
-
-  // Try to add github_id column to fingerprints if it doesn't exist
-  try {
-    db.run(`ALTER TABLE fingerprints ADD COLUMN github_id TEXT`);
-  } catch (err) {
-    // Column already exists, ignore
-  }
-
-  // Try to add github_avatar column to fingerprints if it doesn't exist
-  try {
-    db.run(`ALTER TABLE fingerprints ADD COLUMN github_avatar TEXT`);
-  } catch (err) {
-    // Column already exists, ignore
-  }
-
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS config (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL,
@@ -154,27 +111,12 @@ async function initDatabase() {
     { key: 'confetti_enabled', value: 'true' }
   ];
 
-  defaultConfig.forEach(config => {
-    try {
-      db.run(
-        'INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)',
-        [config.key, config.value]
-      );
-    } catch (err) {
-      // Ignore duplicate key errors
-    }
-  });
-
-  saveDatabase();
-  console.log('Database initialized');
-}
-
-function saveDatabase() {
-  if (db) {
-    const data = db.export();
-    const buffer = Buffer.from(data);
-    fs.writeFileSync(dbPath, buffer);
+  const insertConfig = db.prepare('INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)');
+  for (const config of defaultConfig) {
+    insertConfig.run(config.key, config.value);
   }
+
+  console.log('Database initialized');
 }
 
 function getDb() {
@@ -182,48 +124,7 @@ function getDb() {
     throw new Error('Database not initialized. Call initDatabase() first.');
   }
   
-  return {
-    prepare: (sql) => ({
-      run: (...params) => {
-        try {
-          db.run(sql, params);
-          saveDatabase();
-          return { changes: db.getRowsModified() };
-        } catch (err) {
-          throw err;
-        }
-      },
-      get: (...params) => {
-        try {
-          const stmt = db.prepare(sql);
-          stmt.bind(params);
-          if (stmt.step()) {
-            const row = stmt.getAsObject();
-            stmt.free();
-            return row;
-          }
-          stmt.free();
-          return undefined;
-        } catch (err) {
-          throw err;
-        }
-      },
-      all: (...params) => {
-        try {
-          const stmt = db.prepare(sql);
-          stmt.bind(params);
-          const rows = [];
-          while (stmt.step()) {
-            rows.push(stmt.getAsObject());
-          }
-          stmt.free();
-          return rows;
-        } catch (err) {
-          throw err;
-        }
-      }
-    })
-  };
+  return db;
 }
 
 module.exports = { initDatabase, getDb };
