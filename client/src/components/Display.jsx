@@ -57,10 +57,12 @@ export default function Display() {
   const [votingEnabled, setVotingEnabled] = useState(false)
   const [currentLyricIndex, setCurrentLyricIndex] = useState(0)
   const [cachedLyrics, setCachedLyrics] = useState(null)
+  const [finishedTrackId, setFinishedTrackId] = useState(null)
 
   const nowPlayingRef = useRef(null)
   const lastFetchedAtRef = useRef(null)
   const progressTimerRef = useRef(null)
+  const finishedTrackIdRef = useRef(null)
 
   const appUrl = typeof window !== 'undefined'
     ? `${window.location.protocol}//${window.location.host}`
@@ -77,6 +79,12 @@ export default function Display() {
         const res = await axios.get('/api/now-playing', { timeout: 5000 })
         if (cancelled) return
         const track = res.data?.track ?? null
+        
+        // If track changed, that means the previous one finished
+        if (track?.id && nowPlayingRef.current?.id && track.id !== nowPlayingRef.current.id) {
+          console.log('SONG FINISHED! Previous track ID:', nowPlayingRef.current.id)
+          setFinishedTrackId(nowPlayingRef.current.id)
+        }
         
         // If track changed, reset lyrics cache
         if (track?.id !== nowPlayingRef.current?.id) {
@@ -123,7 +131,8 @@ export default function Display() {
       if (!track?.duration_ms || !fetchedAt) return
       const elapsed = Date.now() - fetchedAt
       const currentMs = (track.progress_ms ?? 0) + elapsed
-      setProgress(Math.min((currentMs / track.duration_ms) * 100, 100))
+      const newProgress = Math.min((currentMs / track.duration_ms) * 100, 100)
+      setProgress(newProgress)
     }, 500)
 
     return () => clearInterval(progressTimerRef.current)
@@ -155,7 +164,12 @@ export default function Display() {
       try {
         const res = await axios.get('/api/queue/current', { timeout: 8000 })
         if (cancelled) return
-        setUpNext(res.data?.queue?.slice(0, 5) ?? [])
+        const queue = res.data?.queue?.slice(0, 20) ?? []
+        // Filter out the finished track from the visual queue
+        const filtered = finishedTrackId
+          ? queue.filter(t => t.id !== finishedTrackId)
+          : queue
+        setUpNext(filtered)
       } catch {
         // keep showing last known queue - no state reset
       }
@@ -165,6 +179,20 @@ export default function Display() {
     const interval = setInterval(fetchQueue, POLL_QUEUE_MS)
     return () => { cancelled = true; clearInterval(interval) }
   }, [])
+
+  // Remove first item from queue when song finishes
+  useEffect(() => {
+    console.log('finishedTrackId changed:', finishedTrackId)
+    if (finishedTrackId) {
+      console.log('Removing first item from queue')
+      console.log('Current upNext before removal:', upNext)
+      setUpNext(prev => {
+        const filtered = prev.slice(1) // Remove first item
+        console.log('Filtered upNext (removed first):', filtered)
+        return filtered
+      })
+    }
+  }, [finishedTrackId])
 
   // Fetch voting_enabled config once on mount
   useEffect(() => {
@@ -244,9 +272,9 @@ export default function Display() {
 
                 {/* Lyrics */}
                 {nowPlaying.lyrics?.lines && (
-                  <div className="mt-4 pt-4 border-t border-white/10 max-h-40 overflow-y-auto scroll-smooth">
+                  <div className="mt-4 pt-4 border-t border-white/10 max-h-40 overflow-y-auto overflow-x-hidden scroll-smooth">
                     <p className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-3">Lyrics</p>
-                    <div className="space-y-2">
+                    <div className="space-y-2 whitespace-normal">
                       {nowPlaying.lyrics.lines.map((line, idx) => (
                         <div
                           key={idx}

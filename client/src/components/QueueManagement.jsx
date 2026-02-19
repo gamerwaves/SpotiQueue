@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Loader2, Music } from 'lucide-react'
@@ -6,12 +6,52 @@ import { Loader2, Music } from 'lucide-react'
 function QueueManagement() {
   const [queue, setQueue] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [finishedTrackId, setFinishedTrackId] = useState(null)
+  const nowPlayingRef = useRef(null)
 
   useEffect(() => {
     fetchQueue()
-    const interval = setInterval(fetchQueue, 30000)
+    const interval = setInterval(fetchQueue, 20000)
     return () => clearInterval(interval)
   }, [])
+
+  // Poll now playing to detect when track changes
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchNowPlaying = async () => {
+      if (cancelled) return
+      try {
+        const res = await axios.get('/api/now-playing', { timeout: 5000 })
+        const track = res.data?.track ?? null
+        
+        // If track changed, that means the previous one finished
+        if (track?.id && nowPlayingRef.current?.id && track.id !== nowPlayingRef.current.id) {
+          console.log('SONG FINISHED! Previous track ID:', nowPlayingRef.current.id)
+          setFinishedTrackId(nowPlayingRef.current.id)
+        }
+        
+        nowPlayingRef.current = track
+      } catch {
+        // ignore errors
+      }
+    }
+
+    fetchNowPlaying()
+    const interval = setInterval(fetchNowPlaying, 5000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
+
+  // Remove first item from queue when song finishes
+  useEffect(() => {
+    if (finishedTrackId && queue) {
+      console.log('Removing first item from queue in QueueManagement')
+      setQueue(prev => ({
+        ...prev,
+        queue: prev.queue.slice(1)
+      }))
+    }
+  }, [finishedTrackId])
 
   const fetchQueue = async () => {
     try { const response = await axios.get('/api/queue/current'); setQueue(response.data) }

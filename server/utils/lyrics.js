@@ -13,7 +13,7 @@ async function getLyrics(trackName, artistName, trackId) {
         track_name: trackName,
         artist_name: artistName
       },
-      timeout: 5000
+      timeout: 10000
     });
 
     if (response.data && response.data.length > 0) {
