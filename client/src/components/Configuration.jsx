@@ -169,6 +169,14 @@ function Configuration() {
       <Card>
         <CardHeader><CardTitle className="text-lg">Security</CardTitle></CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div><Label>Enforce GitHub Auth</Label><p className="text-xs text-muted-foreground">Require guests to sign in with GitHub before queueing or voting</p></div>
+            <Switch checked={config.require_github_auth === 'true'} onCheckedChange={(v) => updateConfig('require_github_auth', v ? 'true' : 'false')} />
+          </div>
+          <div className="flex items-center justify-between">
+            <div><Label>Enforce Hack Club Auth (HC Auth)</Label><p className="text-xs text-muted-foreground">Require guests to sign in with Hack Club before queueing or voting</p></div>
+            <Switch checked={config.require_hackclub_auth === 'true'} onCheckedChange={(v) => updateConfig('require_hackclub_auth', v ? 'true' : 'false')} />
+          </div>
           <div><Label>Admin Password</Label><Input type="password" value={config.admin_password || ''} onChange={(e) => handleChange('admin_password', e.target.value)} placeholder="Enter new password" className="mt-1" /></div>
           <div><Label>User Password (empty = public)</Label><Input type="password" value={config.user_password || ''} onChange={(e) => handleChange('user_password', e.target.value)} placeholder="Leave empty to disable" className="mt-1" /></div>
           <div><Label>Admin Panel URL</Label><Input value={config.admin_panel_url || ''} onChange={(e) => handleChange('admin_panel_url', e.target.value)} placeholder="https://admin.example.com" className="mt-1" /></div>

@@ -10,6 +10,8 @@ const nowPlayingRouter = require('../server/routes/nowPlaying');
 const adminRouter = require('../server/routes/admin');
 const configRouter = require('../server/routes/config');
 const authRouter = require('../server/routes/auth');
+const githubAuthRouter = require('../server/routes/github-auth');
+const hackClubAuthRouter = require('../server/routes/hackclub-auth');
 const { initDatabase } = require('../server/db');
 const { initSlackSocketMode } = require('../server/utils/slack');
 
@@ -40,5 +42,8 @@ app.use('/api/now-playing', nowPlayingRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/config', configRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/github', githubAuthRouter);
+app.use('/api/hackclub', hackClubAuthRouter);
+app.use('/api/hc', hackClubAuthRouter);
 
 module.exports = app;

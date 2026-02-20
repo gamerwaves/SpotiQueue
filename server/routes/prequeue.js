@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDb } = require('../db');
 const { getConfig } = require('../utils/config');
+const { getGuestAuthRequirements, sendAuthRequiredResponse } = require('../utils/guest-auth');
 const { getTrack, addToQueue } = require('../utils/spotify');
 const { sendPrequeueMessage } = require('../utils/slack');
 const crypto = require('crypto');
@@ -41,6 +42,23 @@ router.post('/submit', userAuthMiddleware, async (req, res) => {
 
   if (!fingerprintId) {
     return res.status(400).json({ error: 'Missing fingerprint' });
+  }
+
+  const fingerprint = db.prepare('SELECT * FROM fingerprints WHERE id = ?').get(fingerprintId);
+  if (!fingerprint) {
+    return res.status(400).json({ error: 'Could not fingerprint your device.' });
+  }
+
+  const authRequirements = getGuestAuthRequirements(fingerprint);
+  if (authRequirements.authRequired) {
+    return sendAuthRequiredResponse(res, authRequirements);
+  }
+
+  const requireUsername = getConfig('require_username') === 'true';
+  if (requireUsername && !fingerprint.username) {
+    return res.status(400).json({
+      error: 'Username is required. Please refresh the page and enter your username.'
+    });
   }
 
   // Handle URL input
@@ -112,7 +130,7 @@ router.post('/submit', userAuthMiddleware, async (req, res) => {
     // Send to Slack
     const slackEnabled = process.env.SLACK_WEBHOOK_URL && process.env.SLACK_PREQUEUE_ENABLED === 'true';
     if (slackEnabled) {
-      await sendPrequeueMessage(trackInfo, prequeueId);
+      await sendPrequeueMessage(trackInfo, prequeueId, fingerprint);
     }
 
     res.json({

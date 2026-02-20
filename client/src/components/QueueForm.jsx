@@ -122,6 +122,13 @@ function QueueForm({ fingerprintId, onQueued }) {
         })
       }
     } catch (error) {
+      if (
+        (error.response?.status === 401 || error.response?.status === 503) &&
+        (error.response?.data?.requires_github_auth || error.response?.data?.requires_hackclub_auth)
+      ) {
+        window.location.reload()
+        return
+      }
       const errorMsg = error.response?.data?.error || 'Failed to queue track'
       if (error.response?.data?.cooldown_remaining) {
         setCooldownRemaining(error.response.data.cooldown_remaining)
@@ -143,6 +150,13 @@ function QueueForm({ fingerprintId, onQueued }) {
       setUrlInput('')
       if (confettiEnabled) fireConfetti()
     } catch (error) {
+      if (
+        (error.response?.status === 401 || error.response?.status === 503) &&
+        (error.response?.data?.requires_github_auth || error.response?.data?.requires_hackclub_auth)
+      ) {
+        window.location.reload()
+        return
+      }
       const errorMsg = error.response?.data?.error || 'Failed to queue track'
       if (error.response?.data?.cooldown_remaining) {
         setCooldownRemaining(error.response.data.cooldown_remaining)

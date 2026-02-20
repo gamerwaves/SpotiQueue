@@ -32,6 +32,13 @@ async function initDatabase() {
       cooldown_expires INTEGER,
       status TEXT DEFAULT 'active' CHECK(status IN ('active', 'blocked')),
       username TEXT,
+      github_id TEXT,
+      github_username TEXT,
+      github_avatar TEXT,
+      hackclub_id TEXT,
+      hackclub_username TEXT,
+      hackclub_avatar TEXT,
+      hackclub_slack_id TEXT,
       created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )
   `);
@@ -49,6 +56,21 @@ async function initDatabase() {
   } catch (err) {}
   try {
     db.run(`ALTER TABLE fingerprints ADD COLUMN github_username TEXT`);
+  } catch (err) {}
+  try {
+    db.run(`ALTER TABLE fingerprints ADD COLUMN github_avatar TEXT`);
+  } catch (err) {}
+  try {
+    db.run(`ALTER TABLE fingerprints ADD COLUMN hackclub_id TEXT`);
+  } catch (err) {}
+  try {
+    db.run(`ALTER TABLE fingerprints ADD COLUMN hackclub_username TEXT`);
+  } catch (err) {}
+  try {
+    db.run(`ALTER TABLE fingerprints ADD COLUMN hackclub_avatar TEXT`);
+  } catch (err) {}
+  try {
+    db.run(`ALTER TABLE fingerprints ADD COLUMN hackclub_slack_id TEXT`);
   } catch (err) {}
 
   // Try to add approved_by column to prequeue
@@ -112,20 +134,6 @@ async function initDatabase() {
     // Column already exists, ignore
   }
 
-  // Try to add github_id column to fingerprints if it doesn't exist
-  try {
-    db.run(`ALTER TABLE fingerprints ADD COLUMN github_id TEXT`);
-  } catch (err) {
-    // Column already exists, ignore
-  }
-
-  // Try to add github_avatar column to fingerprints if it doesn't exist
-  try {
-    db.run(`ALTER TABLE fingerprints ADD COLUMN github_avatar TEXT`);
-  } catch (err) {
-    // Column already exists, ignore
-  }
-
   db.run(`
     CREATE TABLE IF NOT EXISTS config (
       key TEXT PRIMARY KEY,
@@ -147,6 +155,8 @@ async function initDatabase() {
     { key: 'admin_password', value: 'admin' },
     { key: 'user_password', value: '' },
     { key: 'require_username', value: 'false' },
+    { key: 'require_github_auth', value: 'false' },
+    { key: 'require_hackclub_auth', value: 'false' },
     { key: 'max_song_duration', value: '0' },
     { key: 'ban_explicit', value: 'false' },
     { key: 'voting_enabled', value: 'false' },

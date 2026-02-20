@@ -87,12 +87,35 @@ export default function Queue({ fingerprintId, myTrackId }) {
     }
   }, [])
 
-  // Fetch voting_enabled config once on mount
+  // Poll voting_enabled config so toggle changes apply without refresh
   useEffect(() => {
-    axios.get('/api/config/public/voting_enabled', { timeout: 5000 })
-      .then(res => setVotingEnabled(res.data?.value === 'true'))
-      .catch(() => setVotingEnabled(false))
+    let cancelled = false
+
+    const fetchVotingEnabled = async () => {
+      if (cancelled) return
+      try {
+        const res = await axios.get('/api/config/public/voting_enabled', { timeout: 5000 })
+        if (cancelled) return
+        setVotingEnabled(res.data?.value === 'true')
+      } catch {
+        if (!cancelled) setVotingEnabled(false)
+      }
+    }
+
+    fetchVotingEnabled()
+    const interval = setInterval(fetchVotingEnabled, 10000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [])
+
+  useEffect(() => {
+    if (!votingEnabled) {
+      setVotes({})
+      setUserVotes([])
+    }
+  }, [votingEnabled])
 
   // Poll votes (only when voting is enabled)
   useEffect(() => {
@@ -118,7 +141,7 @@ export default function Queue({ fingerprintId, myTrackId }) {
   }, [fingerprintId, votingEnabled])
 
   const handleVote = async (trackId) => {
-    if (!fingerprintId || votingId) return
+    if (!fingerprintId || votingId || !votingEnabled) return
     setVotingId(trackId)
 
     // Optimistic update
@@ -206,7 +229,7 @@ export default function Queue({ fingerprintId, myTrackId }) {
                   )}
                   <div className="text-xs text-muted-foreground truncate">{track.artists}</div>
                 </div>
-                {fingerprintId && (
+                {fingerprintId && votingEnabled && (
                   <button
                     onClick={() => handleVote(track.id)}
                     disabled={isPending}

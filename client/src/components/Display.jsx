@@ -193,12 +193,34 @@ export default function Display() {
     }
   }, [finishedTrackId])
 
-  // Fetch voting_enabled config once on mount
+  // Poll voting_enabled config so toggle changes apply without refresh
   useEffect(() => {
-    axios.get('/api/config/public/voting_enabled', { timeout: 5000 })
-      .then(res => setVotingEnabled(res.data?.value === 'true'))
-      .catch(() => setVotingEnabled(false))
+    let cancelled = false
+
+    const fetchVotingEnabled = async () => {
+      if (cancelled) return
+      try {
+        const res = await axios.get('/api/config/public/voting_enabled', { timeout: 5000 })
+        if (cancelled) return
+        setVotingEnabled(res.data?.value === 'true')
+      } catch {
+        if (!cancelled) setVotingEnabled(false)
+      }
+    }
+
+    fetchVotingEnabled()
+    const interval = setInterval(fetchVotingEnabled, 10000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [])
+
+  useEffect(() => {
+    if (!votingEnabled) {
+      setVotes({})
+    }
+  }, [votingEnabled])
 
   // Fetch aura_enabled config once on mount
   useEffect(() => {

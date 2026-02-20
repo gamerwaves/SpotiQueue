@@ -2,14 +2,16 @@ const express = require('express');
 const axios = require('axios');
 const crypto = require('crypto');
 const { getDb } = require('../db');
+const { getGuestAuthRequirements, isGithubOAuthConfigured } = require('../utils/guest-auth');
 
 const router = express.Router();
 
 // Redirect to GitHub OAuth
 router.get('/login', (req, res) => {
   const clientId = process.env.GITHUB_CLIENT_ID;
+  const clientSecret = process.env.GITHUB_CLIENT_SECRET;
 
-  if (!clientId) {
+  if (!clientId || !clientSecret) {
     return res.status(400).json({ error: 'GitHub OAuth not configured' });
   }
 
@@ -93,13 +95,15 @@ router.get('/callback', async (req, res) => {
 
     if (!existing) {
       db.prepare(`
-        INSERT INTO fingerprints (id, first_seen, status, username, github_id, github_avatar)
-        VALUES (?, ?, 'active', ?, ?, ?)
-      `).run(fingerprintId, now, username, githubId, avatar);
+        INSERT INTO fingerprints (id, first_seen, status, username, github_id, github_username, github_avatar)
+        VALUES (?, ?, 'active', ?, ?, ?, ?)
+      `).run(fingerprintId, now, username, githubId, username, avatar);
     } else {
       db.prepare(`
-        UPDATE fingerprints SET username = ?, github_id = ?, github_avatar = ? WHERE id = ?
-      `).run(username, githubId, avatar, fingerprintId);
+        UPDATE fingerprints
+        SET username = ?, github_id = ?, github_username = ?, github_avatar = ?
+        WHERE id = ?
+      `).run(username, githubId, username, avatar, fingerprintId);
     }
 
     // Set fingerprint cookie
@@ -123,8 +127,11 @@ router.get('/callback', async (req, res) => {
 
 // Check if GitHub OAuth is configured
 router.get('/status', (req, res) => {
-  const configured = !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET);
-  res.json({ configured });
+  const requirements = getGuestAuthRequirements(null);
+  res.json({
+    configured: isGithubOAuthConfigured(),
+    enforced: requirements.requireGithubAuth
+  });
 });
 
 module.exports = router;

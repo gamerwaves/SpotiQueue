@@ -18,7 +18,7 @@ import { Button } from './components/ui/button'
 import { Input } from './components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/tabs'
-import { Music, ArrowLeft, Github } from 'lucide-react'
+import { Music, ArrowLeft, Github, Shield } from 'lucide-react'
 import { useAuraColor } from './hooks/useAuraColor'
 
 axios.defaults.withCredentials = true
@@ -31,6 +31,10 @@ function ClientPage() {
   const [username, setUsername] = useState('')
   const [usernameError, setUsernameError] = useState('')
   const [githubAvailable, setGithubAvailable] = useState(false)
+  const [hackClubAvailable, setHackClubAvailable] = useState(false)
+  const [requiresGithubAuth, setRequiresGithubAuth] = useState(false)
+  const [requiresHackClubAuth, setRequiresHackClubAuth] = useState(false)
+  const [oauthError, setOauthError] = useState('')
   const [auraEnabled, setAuraEnabled] = useState(false)
   const [myTrackId, setMyTrackId] = useState(null)
 
@@ -39,24 +43,63 @@ function ClientPage() {
   useEffect(() => {
     // Check URL params for GitHub callback
     const params = new URLSearchParams(window.location.search)
-    if (params.get('github_auth') === 'success') {
+    const githubAuthSuccess = params.get('github_auth') === 'success'
+    const hackClubAuthSuccess = params.get('hackclub_auth') === 'success'
+    const oauthErrorParam = params.get('error')
+    const oauthErrorDetail = params.get('error_detail')
+
+    if (githubAuthSuccess || hackClubAuthSuccess || oauthErrorParam) {
       window.history.replaceState({}, '', '/')
     }
 
-    // Check if GitHub OAuth is available
-    axios.get('/api/github/status').then(res => {
-      setGithubAvailable(res.data.configured)
-    }).catch(() => {})
+    if (oauthErrorParam) {
+      if (oauthErrorDetail) {
+        setOauthError(`Authentication failed: ${oauthErrorDetail}`)
+      } else {
+        setOauthError('Authentication failed. Please try again.')
+      }
+    }
+
+    // Check OAuth provider status in parallel
+    Promise.allSettled([
+      axios.get('/api/github/status'),
+      axios.get('/api/hackclub/status')
+    ]).then(([githubStatus, hackClubStatus]) => {
+      if (githubStatus.status === 'fulfilled') {
+        setGithubAvailable(!!githubStatus.value?.data?.configured)
+      }
+      if (hackClubStatus.status === 'fulfilled') {
+        setHackClubAvailable(!!hackClubStatus.value?.data?.configured)
+      }
+    })
 
     axios.post('/api/fingerprint/generate')
       .then(response => {
-        setFingerprintId(response.data.fingerprint_id)
-        setRequiresUsername(response.data.requires_username || false)
+        const data = response.data || {}
+        setFingerprintId(data.fingerprint_id)
+        setRequiresUsername(data.requires_username || false)
+        setRequiresGithubAuth(data.requires_github_auth || false)
+        setRequiresHackClubAuth(data.requires_hackclub_auth || false)
+        if (typeof data.github_oauth_configured === 'boolean') {
+          setGithubAvailable(data.github_oauth_configured)
+        }
+        if (typeof data.hackclub_oauth_configured === 'boolean') {
+          setHackClubAvailable(data.hackclub_oauth_configured)
+        }
         setLoading(false)
       })
       .catch(error => {
-        if (error.response?.data?.requires_username) {
-          setRequiresUsername(true)
+        const data = error.response?.data || {}
+        if (data.requires_username || data.requires_github_auth || data.requires_hackclub_auth) {
+          setRequiresUsername(!!data.requires_username)
+          setRequiresGithubAuth(!!data.requires_github_auth)
+          setRequiresHackClubAuth(!!data.requires_hackclub_auth)
+          if (typeof data.github_oauth_configured === 'boolean') {
+            setGithubAvailable(data.github_oauth_configured)
+          }
+          if (typeof data.hackclub_oauth_configured === 'boolean') {
+            setHackClubAvailable(data.hackclub_oauth_configured)
+          }
           setLoading(false)
         } else {
           console.error('Error generating fingerprint:', error)
@@ -87,8 +130,17 @@ function ClientPage() {
     if (username.length > 50) { setUsernameError('Username must be 50 characters or less'); return }
     try {
       const response = await axios.post('/api/fingerprint/generate', { username: username.trim() })
-      setFingerprintId(response.data.fingerprint_id)
-      setRequiresUsername(false)
+      const data = response.data || {}
+      setFingerprintId(data.fingerprint_id)
+      setRequiresUsername(data.requires_username || false)
+      setRequiresGithubAuth(data.requires_github_auth || false)
+      setRequiresHackClubAuth(data.requires_hackclub_auth || false)
+      if (typeof data.github_oauth_configured === 'boolean') {
+        setGithubAvailable(data.github_oauth_configured)
+      }
+      if (typeof data.hackclub_oauth_configured === 'boolean') {
+        setHackClubAvailable(data.hackclub_oauth_configured)
+      }
     } catch (error) {
       setUsernameError(error.response?.data?.error || 'Failed to set username')
     }
@@ -103,6 +155,15 @@ function ClientPage() {
     }
   }
 
+  const handleHackClubLogin = async () => {
+    try {
+      const response = await axios.get('/api/hackclub/login')
+      window.location.href = response.data.authUrl
+    } catch (error) {
+      console.error('Hack Club login error:', error)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -110,6 +171,60 @@ function ClientPage() {
           <Music className="h-5 w-5 animate-pulse" />
           <span>Loading...</span>
         </div>
+      </div>
+    )
+  }
+
+  const missingAuthProviders = [
+    requiresGithubAuth ? 'GitHub' : null,
+    requiresHackClubAuth ? 'Hack Club' : null
+  ].filter(Boolean)
+
+  if (missingAuthProviders.length > 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4">
+              <Shield className="h-10 w-10 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">Authentication Required</CardTitle>
+            <p className="text-muted-foreground mt-2">
+              Sign in with {missingAuthProviders.join(' and ')} to continue queueing songs.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {oauthError && (
+              <p className="text-sm text-destructive text-center">{oauthError}</p>
+            )}
+
+            {requiresGithubAuth && (
+              githubAvailable ? (
+                <Button type="button" variant="outline" className="w-full gap-2" onClick={handleGithubLogin}>
+                  <Github className="h-4 w-4" />
+                  Continue with GitHub
+                </Button>
+              ) : (
+                <p className="text-sm text-destructive text-center">
+                  GitHub auth is required but GitHub OAuth is not configured.
+                </p>
+              )
+            )}
+
+            {requiresHackClubAuth && (
+              hackClubAvailable ? (
+                <Button type="button" variant="outline" className="w-full gap-2" onClick={handleHackClubLogin}>
+                  <Shield className="h-4 w-4" />
+                  Continue with Hack Club
+                </Button>
+              ) : (
+                <p className="text-sm text-destructive text-center">
+                  Hack Club auth is required but Hack Club OAuth is not configured.
+                </p>
+              )
+            )}
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -139,7 +254,7 @@ function ClientPage() {
                 <p className="text-sm text-destructive">{usernameError}</p>
               )}
               <Button type="submit" className="w-full">Continue</Button>
-              {githubAvailable && (
+              {(githubAvailable || hackClubAvailable) && (
                 <>
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
@@ -147,10 +262,18 @@ function ClientPage() {
                       <span className="bg-card px-2 text-muted-foreground">or</span>
                     </div>
                   </div>
-                  <Button type="button" variant="outline" className="w-full gap-2" onClick={handleGithubLogin}>
-                    <Github className="h-4 w-4" />
-                    Sign in with GitHub
-                  </Button>
+                  {githubAvailable && (
+                    <Button type="button" variant="outline" className="w-full gap-2" onClick={handleGithubLogin}>
+                      <Github className="h-4 w-4" />
+                      Sign in with GitHub
+                    </Button>
+                  )}
+                  {hackClubAvailable && (
+                    <Button type="button" variant="outline" className="w-full gap-2" onClick={handleHackClubLogin}>
+                      <Shield className="h-4 w-4" />
+                      Sign in with Hack Club
+                    </Button>
+                  )}
                 </>
               )}
             </form>

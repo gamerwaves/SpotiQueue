@@ -1,7 +1,9 @@
 const express = require('express');
 const { getDb } = require('../db');
 const { getConfig } = require('../utils/config');
+const { getGuestAuthRequirements, sendAuthRequiredResponse } = require('../utils/guest-auth');
 const { searchTracks, getTrack, parseSpotifyUrl, addToQueue, getQueue } = require('../utils/spotify');
+const { sendQueueNotification } = require('../utils/slack');
 const basicAuth = require('express-basic-auth');
 
 const router = express.Router();
@@ -115,6 +117,11 @@ router.post('/add', userAuthMiddleware, async (req, res) => {
   
   if (!fingerprint) {
     return res.status(400).json({ error: 'Could not fingerprint your device.' });
+  }
+
+  const authRequirements = getGuestAuthRequirements(fingerprint);
+  if (authRequirements.authRequired) {
+    return sendAuthRequiredResponse(res, authRequirements);
   }
   
   // Check if username is required but not set
@@ -285,6 +292,15 @@ router.post('/add', userAuthMiddleware, async (req, res) => {
       SET last_queue_attempt = ?
       WHERE id = ?
     `).run(now, fingerprintId);
+
+    // Best-effort Slack notification. Do not fail queueing if Slack is unavailable.
+    sendQueueNotification({
+      trackName: trackInfo.name,
+      artistName: trackInfo.artists,
+      fingerprint
+    }).catch((notifyErr) => {
+      console.warn('Queue notification failed:', notifyErr.message);
+    });
     
     // Check if we need to apply cooldown after this successful queue
     const cooldownEnabled = getConfig('fingerprinting_enabled') === 'true';
@@ -338,6 +354,11 @@ router.post('/vote', userAuthMiddleware, (req, res) => {
   const db = getDb();
   const { track_id } = req.body;
   const fingerprintId = req.body.fingerprint_id || req.cookies.fingerprint_id;
+  const votingEnabled = getConfig('voting_enabled') === 'true';
+
+  if (!votingEnabled) {
+    return res.status(503).json({ error: 'Voting is currently disabled.' });
+  }
 
   if (!track_id) {
     return res.status(400).json({ error: 'Track ID required' });
@@ -345,6 +366,16 @@ router.post('/vote', userAuthMiddleware, (req, res) => {
 
   if (!fingerprintId) {
     return res.status(400).json({ error: 'Fingerprint required' });
+  }
+
+  const fingerprint = db.prepare('SELECT * FROM fingerprints WHERE id = ?').get(fingerprintId);
+  if (!fingerprint) {
+    return res.status(400).json({ error: 'Invalid fingerprint' });
+  }
+
+  const authRequirements = getGuestAuthRequirements(fingerprint);
+  if (authRequirements.authRequired) {
+    return sendAuthRequiredResponse(res, authRequirements);
   }
 
   try {
@@ -378,6 +409,11 @@ router.post('/vote', userAuthMiddleware, (req, res) => {
 router.get('/votes', userAuthMiddleware, (req, res) => {
   const db = getDb();
   const fingerprintId = req.query.fingerprint_id || req.cookies.fingerprint_id;
+  const votingEnabled = getConfig('voting_enabled') === 'true';
+
+  if (!votingEnabled) {
+    return res.json({ votes: {}, userVotes: [], enabled: false });
+  }
 
   try {
     // Get all vote counts
@@ -406,4 +442,3 @@ router.get('/votes', userAuthMiddleware, (req, res) => {
 });
 
 module.exports = router;
-

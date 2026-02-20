@@ -12,6 +12,7 @@ const adminRouter = require('./routes/admin');
 const configRouter = require('./routes/config');
 const authRouter = require('./routes/auth');
 const githubAuthRouter = require('./routes/github-auth');
+const hackClubAuthRouter = require('./routes/hackclub-auth');
 const { initDatabase } = require('./db');
 const { initSlackSocketMode } = require('./utils/slack');
 
@@ -64,6 +65,8 @@ async function startServer() {
     app.use('/api/config', configRouter);
     app.use('/api/auth', authRouter);
     app.use('/api/github', githubAuthRouter);
+    app.use('/api/hackclub', hackClubAuthRouter);
+    app.use('/api/hc', hackClubAuthRouter);
 
     // Root route - helpful message in development
     if (!isProduction) {
@@ -133,4 +136,3 @@ async function startServer() {
 }
 
 startServer();
-

@@ -4,6 +4,20 @@ const { App } = require('@slack/bolt');
 let slackApp = null;
 let isSocketModeConnected = false;
 
+function getPrequeueIdFromAction(action) {
+  if (!action) return null;
+
+  if (action.value && String(action.value).trim()) {
+    return String(action.value).trim();
+  }
+
+  if (action.action_id && String(action.action_id).includes('_')) {
+    return String(action.action_id).split('_').slice(1).join('_').trim();
+  }
+
+  return null;
+}
+
 function initSlackSocketMode() {
   const appToken = process.env.SLACK_APP_TOKEN;
   
@@ -23,10 +37,14 @@ function initSlackSocketMode() {
     slackApp.action(/approve_/, async ({ ack, body, say }) => {
       await ack();
       
-      const prequeueId = body.actions[0].action_id.replace('approve_', '');
+      const action = body.actions?.[0];
+      const prequeueId = getPrequeueIdFromAction(action);
       const userId = body.user.id;
       
       try {
+        if (!prequeueId) {
+          throw new Error('Missing prequeue ID in Slack action payload');
+        }
         await handleApprove(prequeueId, userId, body.response_url);
       } catch (error) {
         console.error('Error handling approve:', error);
@@ -37,10 +55,14 @@ function initSlackSocketMode() {
     slackApp.action(/decline_/, async ({ ack, body, say }) => {
       await ack();
       
-      const prequeueId = body.actions[0].action_id.replace('decline_', '');
+      const action = body.actions?.[0];
+      const prequeueId = getPrequeueIdFromAction(action);
       const userId = body.user.id;
       
       try {
+        if (!prequeueId) {
+          throw new Error('Missing prequeue ID in Slack action payload');
+        }
         await handleDecline(prequeueId, userId, body.response_url);
       } catch (error) {
         console.error('Error handling decline:', error);
@@ -63,7 +85,7 @@ async function handleApprove(prequeueId, userId, responseUrl) {
     
     if (!prequeue) {
       await axios.post(responseUrl, {
-        text: 'Error: Prequeue entry not found'
+        text: `Error: Prequeue entry not found (${prequeueId})`
       });
       return;
     }
@@ -90,9 +112,14 @@ async function handleApprove(prequeueId, userId, responseUrl) {
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(prequeue.fingerprint_id, prequeue.track_id, prequeue.track_name, prequeue.artist_name, 'success', now);
 
+    const fingerprint = db.prepare('SELECT * FROM fingerprints WHERE id = ?').get(prequeue.fingerprint_id);
+    const requesterMention = fingerprint?.hackclub_slack_id
+      ? `<@${fingerprint.hackclub_slack_id}>`
+      : (fingerprint?.username ? `*${fingerprint.username}*` : 'Someone');
+
     // Send response
     await axios.post(responseUrl, {
-      text: `✅ Approved by <@${userId}>: ${prequeue.track_name} by ${prequeue.artist_name}`,
+      text: `✅ Approved by <@${userId}>: ${prequeue.track_name} by ${prequeue.artist_name} queued by ${requesterMention}`,
       replace_original: true
     });
     
@@ -118,7 +145,7 @@ async function handleDecline(prequeueId, userId, responseUrl) {
     
     if (!prequeue) {
       await axios.post(responseUrl, {
-        text: 'Error: Prequeue entry not found'
+        text: `Error: Prequeue entry not found (${prequeueId})`
       });
       return;
     }
@@ -153,7 +180,7 @@ async function handleDecline(prequeueId, userId, responseUrl) {
   }
 }
 
-async function sendPrequeueMessage(trackInfo, prequeueId) {
+async function sendPrequeueMessage(trackInfo, prequeueId, requester = null) {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL;
   
   if (!webhookUrl) {
@@ -162,14 +189,18 @@ async function sendPrequeueMessage(trackInfo, prequeueId) {
   }
   
   try {
+    const requesterSlackId = requester?.hackclub_slack_id || null;
+    const requesterName = requester?.username || 'Someone';
+    const requesterMention = requesterSlackId ? `<@${requesterSlackId}>` : `*${requesterName}*`;
+
     const message = {
-      text: `New song queued for approval`,
+      text: `${requesterMention} queued "${trackInfo.name}" by ${trackInfo.artists} (awaiting approval)`,
       blocks: [
         {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*<!subteam^S0AFQAYTM2Q|cf-toronto-song-reviwers> New Song Request*\n*${trackInfo.name}*\nby ${trackInfo.artists}`
+            text: `*<!subteam^S0AFQAYTM2Q|cf-toronto-song-reviwers> New Song Request*\n${requesterMention} queued *${trackInfo.name}*\nby ${trackInfo.artists}`
           },
           accessory: {
             type: 'image',
@@ -230,7 +261,32 @@ async function sendPrequeueMessage(trackInfo, prequeueId) {
   }
 }
 
+async function sendQueueNotification({ trackName, artistName, fingerprint }) {
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+  const enabled = process.env.SLACK_QUEUE_NOTIFICATIONS_ENABLED !== 'false';
+
+  if (!enabled || !webhookUrl) {
+    return false;
+  }
+
+  const slackId = fingerprint?.hackclub_slack_id;
+  const mention = slackId ? `<@${slackId}>` : (fingerprint?.username ? `*${fingerprint.username}*` : 'Someone');
+
+  const message = {
+    text: `${mention} queued "${trackName}" by ${artistName}`
+  };
+
+  try {
+    await axios.post(webhookUrl, message);
+    return true;
+  } catch (error) {
+    console.error('Error sending queue notification:', error.response?.data || error.message);
+    return false;
+  }
+}
+
 module.exports = {
   sendPrequeueMessage,
+  sendQueueNotification,
   initSlackSocketMode
 };
