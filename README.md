@@ -1,6 +1,6 @@
 # SpotiQueue
 
-## ¡¡ Premium *REQUIRED* to sync your own account (if you are a FlavorTown Reviewer, please dm @gamer_waves on slack for me to play a song.)
+## ¡¡ Premium *REQUIRED* to sync your own account (if you are a FlavorTown Reviewer, please dm @gamer_waves on slack for me to play a song.) !!
 
 ### Demo Credentials:
 **Username:** `admin`<br />
