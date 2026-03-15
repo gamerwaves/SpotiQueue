@@ -1,5 +1,11 @@
 # SpotiQueue
 
+## ¡¡ Premium *REQUIRED* to sync your own account (if you are a FlavorTown Reviewer, please dm @gamer_waves on slack for me to play a song.)
+
+### Demo Credentials:
+**Username:** `admin`<br />
+**Password:** `admin`
+
 A self-hosted web application that enables guests to queue Spotify tracks to your account during events. Features anti-spam protection, live playback display, and a comprehensive admin interface for complete control over the queue experience.
 ## What It Does
 
